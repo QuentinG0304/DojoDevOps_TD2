@@ -8,44 +8,47 @@ function handlePreFlightRequest(): Response {
   });
 }
 
-async function handler(_req: Request): Promise<Response> {
-  if (_req.method == "OPTIONS") {
-    handlePreFlightRequest();
+async function handler(req: Request): Promise<Response> {
+  if (req.method === "OPTIONS") {
+    return handlePreFlightRequest();
   }
 
-  const headers = new Headers();
-  headers.append("Content-Type", "application/json");
+  const url = new URL(req.url);
+  const word = url.searchParams.get("word");
+
+  if (!word) {
+    return new Response(
+      JSON.stringify({ error: "Missing 'word' query parameter" }),
+      {
+        status: 400,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+      },
+    );
+  }
 
   const similarityRequestBody = JSON.stringify({
-    word1: "centrale",
-    word2: "supelec",
+    word1: "centrale", 
+    word2: word,       
   });
 
   const requestOptions = {
     method: "POST",
-    headers: headers,
+    headers: { "Content-Type": "application/json" },
     body: similarityRequestBody,
-    redirect: "follow",
   };
 
   try {
     const response = await fetch("https://word2vec.nicolasfley.fr/similarity", requestOptions);
 
     if (!response.ok) {
-      console.error(`Error: ${response.statusText}`);
-      return new Response(`Error: ${response.statusText}`, {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Headers": "content-type",
-        },
-      });
+      throw new Error(`Similarity API error: ${response.statusText}`);
     }
 
     const result = await response.json();
 
-    console.log(result);
     return new Response(JSON.stringify(result), {
       status: 200,
       headers: {
@@ -54,9 +57,16 @@ async function handler(_req: Request): Promise<Response> {
         "Access-Control-Allow-Headers": "content-type",
       },
     });
+
   } catch (error) {
     console.error("Fetch error:", error);
-    return new Response(`Error: ${error.message}`, { status: 500 });
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
+    });
   }
 }
 
