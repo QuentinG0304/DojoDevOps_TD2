@@ -14,7 +14,7 @@ async function handler(req: Request): Promise<Response> {
   }
 
   const url = new URL(req.url);
-  const word = url.searchParams.get("word");
+  const word = url.pathname.split('/').pop();
 
   if (!word) {
     return new Response(
